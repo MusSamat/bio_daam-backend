@@ -1,30 +1,20 @@
-import { Module } from '@nestjs/common';
-import { TelegrafModule } from 'nestjs-telegraf';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TelegramService } from './telegram.service';
-import { TelegramController } from './telegram.controller';
+import { Module }             from '@nestjs/common'
+import { PrismaModule }       from '../prisma.module'
+import { AuthModule }         from '../auth/auth.module'
+import { OrdersModule }       from '../orders/orders.module'
+
+import { TelegramService }    from './telegram.service'
+import { TelegramController } from './telegram.controller'
 
 @Module({
   imports: [
-    ConfigModule,
-    TelegrafModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (config: ConfigService) => {
-        const token = config.get<string>('TELEGRAM_BOT_TOKEN');
-
-        if (!token) {
-          throw new Error('TELEGRAM_BOT_TOKEN не задан!');
-        }
-
-        return {
-          token,
-          launchOptions: undefined,
-        };
-      },
-      inject: [ConfigService],
-    }),
+    PrismaModule,   // PrismaService
+    AuthModule,     // AuthService
+    OrdersModule,   // теперь с экспортом OrdersService
   ],
-  providers: [TelegramService],
-  controllers: [TelegramController],
+  providers: [
+    TelegramService,
+    TelegramController, // @Update()-контроллер ботa
+  ],
 })
 export class TelegramModule {}
