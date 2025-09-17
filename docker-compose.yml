@@ -1,0 +1,30 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bio_daam_test
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/bio_daam_test"
+      TELEGRAM_BOT_TOKEN: 7628156041:AAFy6J7kqTR80OicAVSW88J3ojjqo2cQoFE
+      WEBHOOK_URL: "https://signatures-rica-vsnet-feb.trycloudflare.com"
+
+volumes:
+  pgdata:

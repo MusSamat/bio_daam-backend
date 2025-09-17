@@ -1,0 +1,59 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "../../node_modules/.prisma/client"
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  telegramId String   @unique
+  username   String? // добавили username
+  firstName  String?
+  lastName   String?
+  role       String   @default("user") // добавили роль
+  createdAt  DateTime @default(now())
+  orders     Order[]
+}
+
+model MenuItem {
+  id            Int     @id @default(autoincrement())
+  nameEn        String
+  nameRu        String
+  nameKg        String
+  descriptionEn String?
+  descriptionRu String?
+  descriptionKg String?
+  price         Float
+  imageUrl      String
+
+  orderItems OrderItem[] // <-- добавлена обратная связь
+}
+
+model Order {
+  id           Int         @id @default(autoincrement())
+  user         User        @relation(fields: [userId], references: [id])
+  userId       Int
+  items        OrderItem[]
+  status       String      @default("PENDING")
+  payMethod    String // добавили способ оплаты
+  shippingInfo Json // добавили JSON с адресом доставки
+  comment      String? // комментарий пользователя
+  total        Float // итоговая сумма
+  createdAt    DateTime    @default(now())
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  order       Order    @relation(fields: [orderId], references: [id])
+  orderId     Int
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItemId  Int
+  quantity    Int
+  priceAtTime Float?
+
+  @@unique([orderId, menuItemId], name: "orderId_menuItemId")
+}

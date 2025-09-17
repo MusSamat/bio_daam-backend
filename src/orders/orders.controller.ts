@@ -1,61 +1,37 @@
+// src/orders/orders.controller.ts
 import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Put,
-  UseGuards,
-} from '@nestjs/common';
-import { OrdersService } from './orders.service';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser } from '../users/decorators/current-user.decorator';
-import { User } from '../users/user.entity';
+    Controller,
+    Post,
+    Body,
+    BadRequestException,
+} from '@nestjs/common'
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger'
+import { OrdersService }  from './orders.service'
+import { CreateOrderDto } from './dto/create-order.dto'
 
-type OrderStatus =
-  | 'pending'
-  | 'processing'
-  | 'shipped'
-  | 'delivered'
-  | 'cancelled';
-
+@ApiTags('orders')
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+    constructor(
+        private readonly ordersService: OrdersService,
+    ) {}
 
-  @Post()
-  @UseGuards(JwtAuthGuard)
-  create(@Body() orderData: CreateOrderDto, @CurrentUser() user: User) {
-    return this.ordersService.createOrder(
-      user,
-      orderData.products,
-      orderData.address,
-      orderData.paymentMethod,
-    );
-  }
+    @Post()
+    @ApiOperation({ summary: 'Создать заказ (на основании авторизованного userId)' })
+    @ApiResponse({ status: 201, description: 'Заказ успешно создан' })
+    @ApiResponse({ status: 400, description: 'Неправильный формат запроса' })
+    async create(@Body() dto: CreateOrderDto) {
+        // Проверим, что userId существует в БД (опционально)
+        // Если нет такого юзера — бросим ошибку:
+        const userExists = await this.ordersService.prisma.user.findUnique({
+            where: { id: dto.userId }
+        })
+        if (!userExists) {
+            throw new BadRequestException('Пользователь не найден')
+        }
 
-  @Get()
-  @UseGuards(JwtAuthGuard)
-  findAll() {
-    return this.ordersService.findAll();
-  }
-
-  @Get('my')
-  @UseGuards(JwtAuthGuard)
-  findMyOrders(@CurrentUser() user: User) {
-    return this.ordersService.findByUser(user.id);
-  }
-
-  @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  findOne(@Param('id') id: string) {
-    return this.ordersService.findOne(+id);
-  }
-
-  @Put(':id/status')
-  @UseGuards(JwtAuthGuard)
-  updateStatus(@Param('id') id: string, @Body('status') status: OrderStatus) {
-    return this.ordersService.updateStatus(+id, status);
-  }
+        // Создаём заказ
+        const order = await this.ordersService.createOrder(dto.userId, dto)
+        return { orderId: order.id }
+    }
 }

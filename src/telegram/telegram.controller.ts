@@ -1,71 +1,51 @@
-import { Command, Ctx, Start, Update } from 'nestjs-telegraf';
-import { Context } from 'telegraf';
-import { Controller } from '@nestjs/common';
+import { Update, Start, Ctx, Hears, Action } from 'nestjs-telegraf';
+import { Context, Markup } from 'telegraf';
 
-@Controller()
 @Update()
 export class TelegramController {
   @Start()
-  async start(@Ctx() ctx: Context) {
-    await ctx.reply('Добро пожаловать в магазин! Выберите опцию:', {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: 'Каталог', callback_data: 'catalog' },
-            { text: 'Контакты', callback_data: 'contacts' },
-          ],
-          [
-            { text: 'Открыть меню', callback_data: 'open_menu' }, // Кнопка для открытия Web App
-          ],
-        ],
-      },
-    });
+  async onStart(@Ctx() ctx: Context) {
+    const from = ctx.from
+    const name =
+        from?.username
+            ? `@${from.username}`
+            : [from?.first_name, from?.last_name].filter(Boolean).join(' ')
+    await ctx.reply(
+        `👋, ${name}!\n` +
+        `Поехали за вкусным обедом! 🍽\n` +
+        `Наз на кнопку для начала заказа.`,
+        Markup.inlineKeyboard([
+          [Markup.button.webApp('Открыть меню', process.env.WEBAPP_URL!)],
+        ]),
+    );
   }
 
-  @Command('menu')
-  async menu(@Ctx() ctx: Context) {
-    await ctx.reply('Открываю меню...', {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: 'Каталог',
-              web_app: { url: 'https://your-webapp-url.com' }, // Ваш веб-приложение
-            },
-          ],
-        ],
-      },
-    });
+  @Hears(/^привет$/i)
+  async onHello(@Ctx() ctx: Context) {
+    const from = ctx.from
+    const name =
+        from?.username
+            ? `@${from.username}`
+            : [from?.first_name, from?.last_name].filter(Boolean).join(' ')
+
+    await ctx.reply(`Привет, ${name}! 👋`)
   }
 
-  // Обработчик для кнопки 'catalog'
-  @Command('catalog')
-  async catalog(@Ctx() ctx: Context) {
-    await ctx.reply('Вы выбрали каталог!');
-    // Здесь вы можете добавить логику для отображения каталога
-  }
+  // Любые сообщения, которые _не_ ровно “привет”
+  @Hears(/^(?!привет$).+/i)
+  async onFallback(@Ctx() ctx: Context) {
+    // ctx.message — это Union всех типов Message; проверим, что в нём есть текст
+    const msg = ctx.message
+    const text =
+        msg && 'text' in msg && typeof msg.text === 'string'
+            ? msg.text
+            : ''
 
-  // Обработчик для кнопки 'contacts'
-  @Command('contacts')
-  async contacts(@Ctx() ctx: Context) {
-    await ctx.reply('Вы выбрали раздел контактов!');
-    // Здесь вы можете добавить логику для отображения информации о контактах
-  }
-
-  // Обработчик для кнопки 'open_menu'
-  @Command('open_menu')
-  async openMenu(@Ctx() ctx: Context) {
-    await ctx.reply('Открываю меню...', {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: 'Каталог',
-              web_app: { url: 'https://your-webapp-url.com' },
-            },
-          ],
-        ],
-      },
-    });
+    await ctx.reply(
+        `Вы написали: «${text}»\n\nНажмите кнопку ниже, чтобы открыть меню:`,
+        Markup.inlineKeyboard([
+          [ Markup.button.webApp('Открыть меню', process.env.WEBAPP_URL!) ],
+        ]),
+    )
   }
 }
